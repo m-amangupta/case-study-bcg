@@ -1,0 +1,59 @@
+import org.apache.spark.sql.SparkSession
+import java.io.FileReader
+import scala.io.Source
+import org.json4s._
+import org.json4s.native.JsonMethods._
+
+object Main {
+  def parseArguments(): Map[String, String] = {
+    val parser = new scopt.OptionParser[Config]("spark-submit") {
+      head("spark-submit")
+      opt[String]('j', "job").required().action((x, c) => c.copy(job = x))
+      opt[String]('c', "config_folder").required().action((x, c) => c.copy(configFolder = x))
+    }
+
+    parser.parse(args, Config()) match {
+      case Some(config) => config.toMap
+      case None => throw new IllegalArgumentException("Invalid arguments")
+    }
+  }
+
+  case class Config(job: String = "", configFolder: String = "") {
+    def toMap: Map[String, String] = Map("job" -> job, "config_folder" -> configFolder)
+  }
+
+  def main(args: Array[String]): Unit = {
+    val config = parseArguments()
+    val configFolderPath = config("config_folder")
+    val configFile = new FileReader(s"$configFolderPath/config.json")
+    val configJson = parse(Source.fromReader(configFile).mkString)
+    val configMap = configJson.extract[Map[String, String]]
+
+    val spark = SparkSession.builder.appName(configMap("app_name")).getOrCreate()
+    val logger = new Log4j(spark)
+
+    val jobModule = Class.forName(s"jobs.${configMap("job")}")
+    val jobInstance = jobModule.getDeclaredConstructor().newInstance().asInstanceOf[Job]
+    jobInstance.runJob(spark, configMap, logger)
+  }
+}
+
+trait Job {
+  def runJob(spark: SparkSession, config: Map[String, String], logger: Log4j): Unit
+}
+
+class Log4j(spark: SparkSession) {
+  private val log = spark.sparkContext.log
+
+  def error(message: String): Unit = {
+    log.error(message)
+  }
+
+  def warn(message: String): Unit = {
+    log.warn(message)
+  }
+
+  def info(message: String): Unit = {
+    log.info(message)
+  }
+}

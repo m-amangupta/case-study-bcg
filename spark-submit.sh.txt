@@ -1,0 +1,11 @@
+#!/bin/bash
+
+case_study_id=$1
+
+DEPEND_DIR=/Users/dev/Documents/case-study/jobs/
+SPARK_HOME=/Users/dev/Downloads/spark-3.0.1-bin-hadoop2.7
+APP_DIR=/Users/dev/Documents/case-study
+
+cd $SPARK_HOME
+
+bin/spark-submit --master local[*] --scala-files $DEPEND_DIR"data_extracter.scala",$DEPEND_DIR$case_study_id".scala" --files $APP_DIR"/config.json" $APP_DIR"/main.scala" --job $case_study_id --config_folder $APP_DIR

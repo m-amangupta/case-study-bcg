@@ -1,0 +1,22 @@
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.expressions.Window
+import data_extracter._
+
+def transformData(rawDF: DataFrame, spark: SparkSession): DataFrame = {
+  val df_1 = df_primarypreson.filter($"PRSN_ALC_RSLT_ID" === "Positive" && $"DRVR_ZIP".isNotNull).groupBy($"DRVR_ZIP").count()
+  val windowSpec3 = Window.orderBy(col("count").desc)
+  val solution6 = df_1.withColumn("ROW_NUMBER", row_number.over(windowSpec3)).filter($"ROW_NUMBER" <=5).select($"DRVR_ZIP")
+
+  
+  solution6
+}
+
+def runJob(spark: SparkSession, config: Config, log: Logger): Unit = {
+  log.info("Extracting source csv files")
+  
+  val df_primarypreson = extractData(spark, s"${config.get("source_data_path")}/Primary_Person_use.csv")
+  val outDF = transformData(df_primarypreson, spark)
+  
+  pushData(outDF, s"${config.get("output_data_path")}/solution6", config.get("write_mode"))
+  log.info("File pushed successfully")
+}

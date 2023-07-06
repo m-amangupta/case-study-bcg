@@ -1,0 +1,39 @@
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.expressions.Window
+import data_extracter._
+
+def transformData(perDF: DataFrame, chargeDF: DataFrame, unitDF: DataFrame, spark: SparkSession): DataFrame = {
+  val df_1_select = df_charges.filter($"CHARGE".like("%SPEED"))
+  val df_2 = df_units.filter($"VEH_COLOR_ID" =!= "NA").select($"VEH_COLOR_ID").groupBy($"VEH_COLOR_ID").count()
+  val windowSPec4 =Window.orderBy(col("count").desc)
+  val df_3_select = df_2.withColumn("ROW_NUMBER", row_number.over(windowSPec4)).filter($"ROW_NUMBER" <=10).select($"VEH_COLOR_ID")
+
+  val df_4 = df_units.filter($"VEH_LIC_STATE_ID" =!= "NA").select($"VEH_LIC_STATE_ID").groupBy($"VEH_LIC_STATE_ID").count()  
+  val windowSPec5 =Window.orderBy(col("count").desc)
+  val df_5_select = df_4.withColumn("ROW_NUMBER", row_number.over(windowSPec5)).filter($"ROW_NUMBER" <=25).select($"VEH_LIC_STATE_ID")
+  val df_6_select = df_primarypreson.filter($"DRVR_LIC_CLS_ID" =!= "UNLICENSED")
+  val join1 = df_units.join(df_3_select, "VEH_COLOR_ID", "inner")
+  val join2 = join1.join(df_1_select, Seq("CRASH_ID","UNIT_NBR"), "inner")
+  val join3 = join2.join(df_5_select, "VEH_LIC_STATE_ID", "inner")
+  val join4 = join3.join(df_6_select, Seq("CRASH_ID","UNIT_NBR"), "inner")
+
+  val result = join4.groupBy($"VEH_MAKE_ID").count()
+  val windowSPec6 =Window.orderBy(col("count").desc)
+  val solution8 = result.withColumn("ROW_NUMBER", row_number.over(windowSPec6)).filter($"ROW_NUMBER" <=5).select($"VEH_MAKE_ID")
+
+  solution8
+
+}
+
+def runJob(spark: SparkSession, config: Config, log: Logger): Unit = {
+  log.info("Extracting source csv files")
+  
+  val df_primarypreson = extractData(spark, s"${config.get("source_data_path")}/Primary_Person_use.csv")
+  val df_charges = extractData(spark, s"${config.get("source_data_path")}/Charges_use.csv").distinct()
+  val df_units = extractData(spark, s"${config.get("source_data_path")}/Units_use.csv").distinct()
+  
+  val outDF = transformData(df_primarypreson, df_charges, df_units, spark)
+  
+  pushData(outDF, s"${config.get("output_data_path")}/solution8", config.get("write_mode"))
+  log.info("File pushed successfully")
+}

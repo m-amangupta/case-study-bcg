@@ -1,0 +1,23 @@
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.types.IntegerType
+import data_extracter._
+
+def transformData(unitDF: DataFrame, spark: SparkSession): DataFrame = {
+  val temp_solution = df_units.withColumn("INJRY_DEATH_CNT", $"TOT_INJRY_CNT" + $"DEATH_CNT").groupBy($"VEH_MAKE_ID").agg(sum($"INJRY_DEATH_CNT").alias("TOTAL_INJRY_DEATH_CNT"))
+  val windowSpec = Window.orderBy(col("TOTAL_INJRY_DEATH_CNT").desc)
+  val solution4 = temp_solution.withColumn("ROW_NO", row_number().over(windowSpec)).filter($"ROW_NO" >= 5 && $"ROW_NO" <= 15).select("VEH_MAKE_ID","TOTAL_INJRY_DEATH_CNT")
+  
+  solution4
+}
+
+def runJob(spark: SparkSession, config: Config, log: Logger): Unit = {
+  log.info("Extracting source csv files")
+  
+  val df_units = extractData(spark, s"${config.get("source_data_path")}/Units_use.csv").distinct()
+  
+  val outDF = transformData(df_units, spark)
+  
+  pushData(outDF, s"${config.get("output_data_path")}/solution4", config.get("write_mode"))
+  log.info("File pushed successfully")
+}

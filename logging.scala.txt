@@ -1,0 +1,18 @@
+import org.apache.log4j.{Logger, Level}
+import org.apache.spark.SparkContext
+
+class Log4j(sparkContext: SparkContext) {
+  private val log = Logger.getLogger(sparkContext.applicationId)
+
+  def error(message: String): Unit = {
+    log.error(message)
+  }
+
+  def warn(message: String): Unit = {
+    log.warn(message)
+  }
+
+  def info(message: String): Unit = {
+    log.info(message)
+  }
+}

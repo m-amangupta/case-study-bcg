@@ -1,0 +1,6 @@
+{
+  "app_name": "CASE-STUDY",
+  "source_data_path": "/Users/dev/Documents/case_study/Data/INPUT",
+  "output_data_path": "/Users/dev/Documents/case_study/Data/OUTPUT",
+  "write_mode": "overwrite"
+}

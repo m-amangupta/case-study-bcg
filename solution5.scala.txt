@@ -1,0 +1,28 @@
+import org.apache.spark.sql.functions._
+import org.apache.spark.sql.expressions.Window
+import data_extracter._
+
+def transformData(perDF: DataFrame, unitDF: DataFrame, spark: SparkSession): DataFrame = {
+  val df_1 = df_primarypreson.filter($"PRSN_ETHNICITY_ID" =!= "NA" && $"PRSN_ETHNICITY_ID" =!= "OTHER" && $"PRSN_ETHNICITY_ID" =!= "UNKNOWN")
+  val df_2 = df_units.filter($"VEH_BODY_STYL_ID" =!= "NA" && $"VEH_BODY_STYL_ID" =!= "NOT REPORTED" && $"VEH_BODY_STYL_ID" =!= "UNKNOWN" && $"VEH_BODY_STYL_ID" =!= "OTHER (EXPLAIN IN NARRATIVE)")
+  val df_3 = df_2.join(df_1, Seq("CRASH_ID","UNIT_NBR"),"inner")
+  val df_3_agg = df_3.groupBy($"VEH_BODY_STYL_ID", $"PRSN_ETHNICITY_ID").count()
+  val windowSpec2 = Window.partitionBy($"VEH_BODY_STYL_ID").orderBy(col("count").desc)
+  val solution5 = df_3_agg.withColumn("RANK", rank().over(windowSpec2)).filter($"RANK" === 1).select($"VEH_BODY_STYL_ID",$"PRSN_ETHNICITY_ID")
+
+  
+  solution5
+}
+
+def runJob(spark: SparkSession, config: Config, log: Logger): Unit = {
+  log.info("Extracting source csv files")
+  
+  val df_primarypreson = extractData(spark, s"${config.get("source_data_path")}/Primary_Person_use.csv")
+  
+  val df_units = extractData(spark, s"${config.get("source_data_path")}/Units_use.csv").distinct()
+  
+  val outDF = transformData(df_primarypreson, df_units, spark)
+  
+  pushData(outDF, s"${config.get("output_data_path")}/solution5", config.get("write_mode"))
+  log.info("File pushed successfully")
+}

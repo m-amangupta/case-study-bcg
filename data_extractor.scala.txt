@@ -1,0 +1,17 @@
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+
+def extractData(spark: SparkSession, path: String): DataFrame = {
+  spark.read.format("csv")
+    .option("header", "true")
+    .load(path)
+}
+
+def pushData(df: DataFrame, path: String, mode: SaveMode): Unit = {
+  df.coalesce(1)
+    .write
+    .mode(mode)
+    .format("csv")
+    .option("header", "true")
+    .save(path)
+}
+

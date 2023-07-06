@@ -1,0 +1,19 @@
+import org.apache.spark.sql.functions._
+import data_extracter._
+
+def transformData(rawDF: DataFrame, spark: SparkSession): DataFrame = {
+  val solution2 = df_units.filter($"VEH_BODY_STYL_ID".like("%MOTORCYCLE%")).select("CRASH_ID").distinct().count()
+  
+  spark.createDataFrame(Seq(solution2))
+    .toDF("solution2")
+}
+
+def runJob(spark: SparkSession, config: Config, log: Logger): Unit = {
+  log.info("Extracting Units_use csv file")
+  
+  val df_units = extractData(spark, s"${config.get("source_data_path")}/Units_use.csv").distinct()
+  val outDF = transformData(df_units, spark)
+  
+  pushData(outDF, s"${config.get("output_data_path")}/solution2", config.get("write_mode"))
+  log.info("File pushed successfully")
+}
